@@ -6,7 +6,6 @@ entity ascii_output_gen is
     Port (
         clk          : in  std_logic;
         trigger_in   : in  std_logic;
-        period_value : in  std_logic_vector(31 downto 0);
         mode_select  : in  std_logic_vector(1 downto 0); -- NEW: mode select input
         value        : out std_logic_vector(7 downto 0);
         data_valid   : out std_logic
@@ -24,10 +23,10 @@ architecture Behavioral of ascii_output_gen is
         x"34", x"35"
     );
 
-    -- Example sine wave table: 200 samples, 8-bit values
+    -- Sine wave table: 200 samples
     type sine_array_t is array(0 to 199) of std_logic_vector(7 downto 0);
     constant sine_wave : sine_array_t := (
-       x"00",x"08",x"10",x"18",x"20",x"27",x"2F",x"36",x"3D",x"44",x"4B",x"51",x"57",x"5D",x"62",x"67",
+              x"00",x"08",x"10",x"18",x"20",x"27",x"2F",x"36",x"3D",x"44",x"4B",x"51",x"57",x"5D",x"62",x"67",
 x"6B",x"6F",x"73",x"76",x"79",x"7B",x"7D",x"7E",x"7F",x"7F",x"7F",x"7E",x"7D",x"7B",x"79",x"76",
 x"73",x"6F",x"6B",x"67",x"62",x"5D",x"57",x"51",x"4B",x"44",x"3D",x"36",x"2F",x"27",x"20",x"18",
 x"10",x"08",x"00",x"F8",x"F0",x"E8",x"E0",x"D9",x"D1",x"CA",x"C3",x"BC",x"B5",x"AF",x"A9",x"A3",
@@ -42,10 +41,13 @@ x"81",x"82",x"83",x"85",x"87",x"8A",x"8D",x"91",x"95",x"99",x"9E",x"A3",x"A9",x"
 x"C3",x"CA",x"D1",x"D9",x"E0",x"E8",x"F0",x"F8"
     );
 
+    -- priod value base on baud rate
+    constant constant_period_value : unsigned(31 downto 0) := to_unsigned(4400, 32); -- Buad rate 115200 and clock 50MHz: 50MHz/11520 = 4340, we use 4400
+
     signal trigger_in_prev : std_logic := '0';
     signal active          : std_logic := '0';
     signal counter         : unsigned(31 downto 0) := (others => '0');
-    signal index           : integer range 0 to 200 := 0;  -- Supports both message and sine
+    signal index           : integer range 0 to 200 := 0;
     signal value_reg       : std_logic_vector(7 downto 0) := (others => '0');
     signal data_valid_reg  : std_logic := '0';
 
@@ -65,13 +67,13 @@ begin
                 elsif mode_select = "01" then
                     value_reg <= sine_wave(0);
                 else
-                    value_reg <= (others => '0'); -- default for unsupported modes
+                    value_reg <= (others => '0');
                     active <= '0';
                 end if;
             else
                 data_valid_reg <= '0';
                 if active = '1' then
-                    if counter = unsigned(period_value) then
+                    if counter = constant_period_value then
                         counter <= (others => '0');
 
                         if mode_select = "00" then
